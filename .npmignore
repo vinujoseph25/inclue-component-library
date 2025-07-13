@@ -1,0 +1,28 @@
+# Source files
+src/
+stories/
+tests/
+examples/
+docs/
+
+# Config files
+.storybook/
+.github/
+tsconfig.json
+tsconfig.build.json
+rollup.config.js
+jest.config.js
+.eslintrc.js
+.prettierrc
+.gitignore
+.releaserc.json
+
+# Development files
+*.log
+coverage/
+storybook-static/
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
