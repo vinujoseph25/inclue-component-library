@@ -4,13 +4,15 @@ stories/
 tests/
 examples/
 docs/
+scripts/
 
 # Config files
 .storybook/
 .github/
 tsconfig.json
 tsconfig.build.json
-rollup.config.js
+webpack.config.js
+webpack.types.config.js
 jest.config.js
 .eslintrc.js
 .prettierrc
@@ -26,3 +28,7 @@ node_modules/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Build artifacts (keep only dist/)
+dist/types/
+*.tsbuildinfo

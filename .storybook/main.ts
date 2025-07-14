@@ -1,31 +1,27 @@
-import type { StorybookConfig } from '@storybook/react-vite';
-import { mergeConfig } from 'vite';
+import type { StorybookConfig } from '@storybook/react-webpack5';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
+// Get __dirname equivalent for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const config: StorybookConfig = {
-  stories: [
-    '../src/**/*.stories.@(js|jsx|ts|tsx|mdx)',
-    '../stories/**/*.stories.@(js|jsx|ts|tsx|mdx)',
-    '../docs/**/*.stories.@(js|jsx|ts|tsx|mdx)',
-  ],
-
-  addons: [
-    '@storybook/addon-actions', // Must come before interactions
-    '@storybook/addon-essentials',
-    '@storybook/addon-interactions', // Must come after actions
-    '@storybook/addon-docs',
-    '@storybook/addon-controls',
-    '@storybook/addon-viewport',
-    '@storybook/addon-backgrounds',
-    '@storybook/addon-toolbars',
-    '@storybook/addon-measure',
-    '@storybook/addon-outline',
-    '@storybook/addon-a11y',
-  ],
-
   framework: {
-    name: '@storybook/react-vite',
+    name: '@storybook/react-webpack5',
     options: {},
   },
+
+  stories: ['../src/**/*.stories.@(js|jsx|ts|tsx|mdx)'],
+
+  addons: [
+    '@storybook/addon-essentials',
+    '@storybook/addon-interactions',
+    '@storybook/addon-docs',
+    '@storybook/addon-a11y',
+  ],
 
   typescript: {
     check: false,
@@ -59,50 +55,87 @@ const config: StorybookConfig = {
     disableTelemetry: true,
   },
 
-  async viteFinal(config, { configType }) {
-    // Merge custom configuration into the default config
-    return mergeConfig(config, {
-      // Add dependencies to pre-optimization
-      optimizeDeps: {
-        include: [
-          '@storybook/react',
-          '@storybook/addon-essentials',
-          '@mui/material',
-          '@emotion/react',
-          '@emotion/styled',
-          'react-intl-universal',
-        ],
-      },
+  webpackFinal: async (config, { configType }) => {
+    // Ensure config.resolve exists
+    if (!config.resolve) {
+      config.resolve = {};
+    }
 
-      // Define global constants
-      define: {
-        'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
-      },
+    // Add custom resolve aliases
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@': path.resolve(__dirname, '..', 'src'),
+    };
 
-      // Resolve aliases
-      resolve: {
-        alias: {
-          '@': '/src',
-        },
-      },
+    // Ensure extensions are set
+    config.resolve.extensions = [...(config.resolve.extensions || []), '.ts', '.tsx'];
 
-      // Configure build options for production
-      ...(configType === 'PRODUCTION' && {
-        build: {
-          sourcemap: false,
-          minify: 'terser',
-          rollupOptions: {
-            output: {
-              manualChunks: {
-                vendor: ['react', 'react-dom'],
-                mui: ['@mui/material', '@emotion/react', '@emotion/styled'],
-                storybook: ['@storybook/react', '@storybook/addon-essentials'],
-              },
-            },
+    // Add TypeScript rule if not present
+    const tsRule = {
+      test: /\.tsx?$/,
+      use: [
+        {
+          loader: 'ts-loader',
+          options: {
+            transpileOnly: true,
+            configFile: path.resolve(__dirname, '..', 'tsconfig.json'),
           },
         },
-      }),
+      ],
+      exclude: /node_modules/,
+    };
+
+    // Check if TypeScript rule already exists
+    const hasTypescriptRule = config.module?.rules?.some((rule: any) =>
+      rule?.test?.toString().includes('tsx?')
+    );
+
+    if (!hasTypescriptRule && config.module?.rules) {
+      config.module.rules.push(tsRule);
+    }
+
+    // Add CSS support
+    config.module?.rules?.push({
+      test: /\.css$/,
+      use: ['style-loader', 'css-loader'],
     });
+
+    // Configure optimization for production builds
+    if (configType === 'PRODUCTION') {
+      if (!config.optimization) {
+        config.optimization = {};
+      }
+
+      config.optimization.splitChunks = {
+        chunks: 'all',
+        cacheGroups: {
+          vendor: {
+            test: /[\\/]node_modules[\\/]/,
+            name: 'vendors',
+            chunks: 'all',
+          },
+          mui: {
+            test: /[\\/]node_modules[\\/](@mui|@emotion)[\\/]/,
+            name: 'mui',
+            chunks: 'all',
+          },
+        },
+      };
+    }
+
+    // Define global constants
+    if (!config.plugins) {
+      config.plugins = [];
+    }
+
+    const webpack = require('webpack');
+    config.plugins.push(
+      new webpack.DefinePlugin({
+        'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
+      })
+    );
+
+    return config;
   },
 
   // Remove or comment out staticDirs if you don't have a public directory

@@ -53,7 +53,12 @@ style.innerHTML = `
   
   .sidebar-item[data-selected="true"] {
     background: rgba(255, 255, 255, 0.1) !important;
-    color: white !important;
+    color: black !important;
+  }
+
+  .sidebar-item[data-selected="true"] svg {
+    background: rgba(255, 255, 255, 0.1) !important;
+    color: black !important;
   }
   
   .sidebar-item:hover {
